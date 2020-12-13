@@ -4,13 +4,14 @@ pocket_api_key.txt
 # public-key.gpg
 token.pickle
 launch.json
+tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# C etensions
 *.so
 
 # Distribution / packaging

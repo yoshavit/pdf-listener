@@ -20,3 +20,5 @@ poppler-utils
 python:
 tqdm, pdfminer.six
 pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+Optional: install/prettify diff

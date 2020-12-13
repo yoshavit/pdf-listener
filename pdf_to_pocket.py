@@ -5,11 +5,13 @@ from urllib import parse, request
 import requests
 import mimetypes
 import warnings
+import re
 
 from pdfminer.high_level import extract_text
 
 from gdrive_utils import add_text_to_gdrive
 from pocket_utils import authorize_pocket, add_links_to_pocket
+from text_postprocessing import postprocess_text
 
 
 MAX_TAG_LENGTH = 25
@@ -31,6 +33,8 @@ def ProcessFilepath(extensions):
 
         def __call__(self, parser, namespace, fpath, option_string=None):
             # Check whether the path is a local path or a URL
+
+            # print(parse.urlparse(fpath).scheme)
             if parse.urlparse(fpath).scheme == "":
                 # Path is a local path
                 extension = os.path.splitext(fpath)[1][1:]
@@ -38,18 +42,20 @@ def ProcessFilepath(extensions):
                 setattr(namespace, self.dest, fpath)
             else:  # fpath is a URL
                 url = fpath
+                print("Downloading from {}.".format(url))
                 # Get the file
                 with requests.get(url, stream=True) as response:
+                    d = response.headers["content-disposition"]
+                    fname = re.findall("filename=(.+)", d)[0]
                     # Validate the extension
                     content_type = response.headers["content-type"]
                     # Get extension type and remove '.' from e.g. '.pdf'
                     extension = mimetypes.guess_extension(content_type)[1:]
                     assert self.ext_ok(extension, parser, option_string)
-                    fname = "/tmp/pdf_to_pocket/downloaded_file" + "." + extension
-                    print(f"Downloading from {url}.")
-                    request.urlretrieve(url, fname)
-
-                    print(f"File downloaded to {fname}.")
+                    localpath = os.path.join("/tmp/pdf_to_pocket/", fname)
+                    with open(localpath, "wb") as f:
+                        f.write(response.content)
+                    print("{} is the location of the new file.".format(localpath))
                     setattr(namespace, self.dest, fname)
 
     return Act
@@ -59,8 +65,8 @@ parser = argparse.ArgumentParser(description="Process and upload a file into Poc
 parser.add_argument("docname", help="The name to give the document in gdrive/pocket")
 parser.add_argument(
     "filename",
-    action=ProcessFilepath(["pdf", "epub"]),
-    help="The path to the file being processed, either local or a URL; file must be of type *.pdf or *.epub",
+    action=ProcessFilepath(["pdf", "txt"]),
+    help="The path to the file being processed, either local or a URL; file must be of type *.pdf or *.txt",
 )
 parser.add_argument(
     "-t",
@@ -81,26 +87,33 @@ parser.add_argument(
     help="Number of words to include in each uploaded fragment",
 )
 parser.add_argument(
-    "-p",
-    "--preview",
-    dest="preview",
+    "-e",
+    "--edit",
+    dest="edit",
     action="store_true",
     help="Whether to show the user a draft text file in an editor before uploading it to pocket.",
 )
 parser.add_argument(
-    "--edit-only",
-    dest="edit_only",
+    "-n",
+    "--no-upload",
+    dest="no_upload",
     action="store_true",
     help="Whether to terminate the program after the text parsing stage.",
 )
 parser.add_argument(
     "--ignore-default-tag",
-    "-idt",
+    "-it",
     dest="ignore_default_tag",
     action="store_true",
     help='Whether to exclude the default "pdf-to-pocket" pocket tag',
 )
-# TODO Add argument to "preview" text before adding to pocket
+parser.add_argument(
+    "-d",
+    "--show-diff",
+    dest="show_diff",
+    action="store_true",
+    help="Whether to show a diff of the text postprocessing result",
+)
 os.makedirs("/tmp/pdf_to_pocket/", exist_ok=True)
 args = parser.parse_args()
 filename = args.filename
@@ -122,36 +135,30 @@ words_per_file = args.words_per_file
 # Verify that you have Pocket and Google credentials
 with open("pocket_api_key.txt", "r") as f:
     pocket_api_key = f.read()
-
 assert os.path.exists(
     "gdrive_credentials.json"
 ), "Must get a gdrive credentials file; for more info, click on 'Enable Drive API' at https://developers.google.com/drive/api/v3/quickstart/python "
 
-# Extract the text
+
+# Extract the text ======================================
 extension = os.path.splitext(filename)[1][1:]
 print("Extracting text")
 if extension == "pdf":
-    text = extract_text(filename)
+    raw_text = extract_text(filename)
+elif extension == "txt":
+    with open(filename, "r") as f:
+        raw_text = f.read()
 print("Text extracted!")
 
-if args.preview:
-    import subprocess
 
-    textfile = "/tmp/pdf_to_pocket/preview.txt"
-    if os.path.exists(textfile):
-        os.remove(textfile)
-    with open(textfile, "w") as f:
-        f.write(text)
+# Text postprocessing =============================
+# TODO figure out an elegant way of adding postprocessing arguments as they come up
+text = postprocess_text(raw_text, filename, args)
 
-    p = subprocess.Popen(f"{os.environ['EDITOR']} {textfile}", shell=True)
-    print("When you're done editing, close the window and we'll resume.")
-    p.wait()
-    if args.edit_only:
-        exit("Terminating without uploading docs.")
-    with open(textfile, "r") as f:
-        text = f.read()
-    print("Resuming!")
+if args.no_upload:
+    exit("Terminating without uploading docs (called with option '-n'/'--no-upload').")
 
+# Upload the files ============================================
 print("Uploading to gdrive")
 pubd_gdrive_links, gdrive_names = add_text_to_gdrive(
     text, doc_name, "gdrive_credentials.json", max_words_per_file=words_per_file

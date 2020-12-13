@@ -5,6 +5,8 @@ import webbrowser
 
 from tqdm import tqdm
 
+from getch import getch
+
 
 def authorize_pocket(api_key, tag_name):
     """Get access token to interact with Pocket app
@@ -98,13 +100,10 @@ def add_links_to_pocket(
 
 def _wait_for_acknowledgement():
     try:
-        ack = input(
-            "Press enter to confirm you've clicked through the authorization. (Or press ctrl-c to cancel.)"
+        print(
+            "Press any key to confirm you've clicked through the authorization, or press ctrl-c to cancel."
         )
-        if ack == "":
-            return True
-        else:
-            print("Please press either enter or ctrl-c.")
-            return _wait_for_acknowledgement()
+
+        key = getch()
     except:
         raise EOFError("Cancelled upload.")
