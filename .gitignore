@@ -3,7 +3,7 @@
 pocket_api_key.txt
 # public-key.gpg
 token.pickle
-launch.json
+.vscode/
 tmp/
 
 # Byte-compiled / optimized / DLL files

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import os
 import argparse
 from urllib import parse, request
@@ -45,18 +44,21 @@ def ProcessFilepath(extensions):
                 print("Downloading from {}.".format(url))
                 # Get the file
                 with requests.get(url, stream=True) as response:
-                    d = response.headers["content-disposition"]
-                    fname = re.findall("filename=(.+)", d)[0]
                     # Validate the extension
                     content_type = response.headers["content-type"]
                     # Get extension type and remove '.' from e.g. '.pdf'
                     extension = mimetypes.guess_extension(content_type)[1:]
                     assert self.ext_ok(extension, parser, option_string)
+                    if "content-disposition" in response.headers:
+                        d = response.headers["content-disposition"]
+                        fname = re.findall("filename=(.+)", d)[0]
+                    else:
+                        fname = "download" + "." + extension
                     localpath = os.path.join("/tmp/pdf_to_pocket/", fname)
                     with open(localpath, "wb") as f:
                         f.write(response.content)
                     print("{} is the location of the new file.".format(localpath))
-                    setattr(namespace, self.dest, fname)
+                    setattr(namespace, self.dest, localpath)
 
     return Act
 
@@ -133,16 +135,19 @@ if not args.ignore_default_tag:
 words_per_file = args.words_per_file
 
 # Verify that you have Pocket and Google credentials
-with open("pocket_api_key.txt", "r") as f:
-    pocket_api_key = f.read()
+from pocket_api_key import pocket_api_key
+
+assert (
+    pocket_api_key != "put your API key here"
+), f"You need to create and specify a Pocket API key!\nFor more info, go to ./SETUP.md ."
 assert os.path.exists(
-    "gdrive_credentials.json"
-), "Must get a gdrive credentials file; for more info, click on 'Enable Drive API' at https://developers.google.com/drive/api/v3/quickstart/python "
+    "credentials.json"
+), "Must get a gdrive credentials file!\nFor more info, go to ./SETUP.md ."
 
 
 # Extract the text ======================================
 extension = os.path.splitext(filename)[1][1:]
-print("Extracting text")
+print("Extracting text...")
 if extension == "pdf":
     raw_text = extract_text(filename)
 elif extension == "txt":
@@ -156,14 +161,16 @@ print("Text extracted!")
 text = postprocess_text(raw_text, filename, args)
 
 if args.no_upload:
-    exit("Terminating without uploading docs (called with option '-n'/'--no-upload').")
+    exit(
+        "Terminating without uploading docs. (Script called with option '-n'/'--no-upload')."
+    )
 
 # Upload the files ============================================
-print("Uploading to gdrive")
+print("Uploading to gdrive...")
 pubd_gdrive_links, gdrive_names = add_text_to_gdrive(
-    text, doc_name, "gdrive_credentials.json", max_words_per_file=words_per_file
+    text, doc_name, "credentials.json", max_words_per_file=words_per_file
 )
-print("Links: ", pubd_gdrive_links)
+print("Files published to gdrive!")
 
 access_token = authorize_pocket(pocket_api_key, tag_name)
 add_links_to_pocket(
