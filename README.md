@@ -4,8 +4,8 @@ This is a project to allow anyone to listen to PDFs as "podcasts", by leveraging
 
 ### How it works
 
-You use Pocket by adding links. Each time you add a link, Pocket attempts to parse the contents of a link into its special "Article View" format. If it succeeds, as it does for e.g. the NYT or other compatible webpages,
-then it unlocks additional features for that article in the app. In particular, Pocket can [use the device's built-in text-to-speech capabilities](https://help.getpocket.com/article/1081-listening-to-articles-in-pocket-with-text-to-speech).
+You use Pocket by adding links to articles, to be read later. Each time you add a link, Pocket attempts to parse the contents of a link into its special "Article View" format. If it succeeds, as it does for e.g. the NYT or other compatible webpages,
+then it unlocks additional features for that article in the app. In particular, Pocket can [use your device's built-in text-to-speech capabilities](https://help.getpocket.com/article/1081-listening-to-articles-in-pocket-with-text-to-speech).
 
 All we need to do to make Pocket read out our PDFs is to provide them in an "Article View" compatible format.
 Thankfully, published Google Docs links can be parsed into Article View, provided they aren't too long!
