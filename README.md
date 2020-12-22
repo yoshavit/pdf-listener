@@ -1,10 +1,10 @@
 # PDF Listener
 
-This is a project to allow anyone to listen to PDFs as "podcasts", by leveraging [the Pocket App](https://getpocket.com/)'s "Listen to Article View" feature.
+This is a project to allow anyone to listen to PDFs as "podcasts", by leveraging [the Pocket App](https://getpocket.com/)'s "Listen to Article" feature.
 
 ### How it works
 
-You use Pocket by adding links. Each time you add a link, Pocket attempts to parse the contents of a link into its special "Article View" format. If it succeeds, as it does for e.g. the NYT or other compatible webpages,
+You use Pocket by "adding" links to the app. Each time you add a link, Pocket attempts to parse the contents of a link into its special "Article View" format. If it succeeds, as it does for e.g. the NYT or other compatible webpages,
 then it unlocks additional features for that article in the app. In particular, Pocket can [use the device's built-in text-to-speech capabilities](https://help.getpocket.com/article/1081-listening-to-articles-in-pocket-with-text-to-speech).
 
 All we need to do to make Pocket read out our PDFs is to provide them in an "Article View" compatible format.
@@ -88,7 +88,7 @@ Accept the terms of service, and then click "Create Application".
 You'll be navigated to the "My Applications" page, where, next to the application name you provided,
 you should see a consumer key (e.g. `12345-abcd67890beef1337`). Highlight and copy the text of the key.
 
-Now, open `./pocket_api_key.py` in this repo. Remove the currentl value of `pocket_api_key`. Paste in your API key instead, in quotes.
+Now, open `./pocket_api_key.py` in this repo. Remove the value of `pocket_api_key`. Paste in your API key instead, in quotes.
 
 You should be ready!
 
@@ -114,9 +114,11 @@ Pocket is offering us a really wonderful service. They're also owned by Mozilla,
 
 To be clear, I'm not affiliated with Pocket in any way. I think it's really cool that they've made such an excellent text-to-speech feature free to the public. I also maybe worry a little about what this will do to their server costs. Anyway, [help them out](https://getpocket.com/premium) if you can. It's \\$5/mo or \\$45/yr.
 
-Credit originally goes to [Rob Wiblin](http://www.robwiblin.com/) for mentioning this hack with Google Drive and Pocket on his excellent podcast, [The 80,000 Hours Podcast](https://80000hours.org/podcast/).
-It's provided me with a lot of helpful career advice, and maybe it'll help you too.
+Credit originally goes to [Rob Wiblin](http://www.robwiblin.com/) for mentioning this method using Google Drive and Pocket on his excellent podcast, [The 80,000 Hours Podcast](https://80000hours.org/podcast/).
+His work has provided me with a lot of helpful career advice, and maybe it'll help you too.
 
 ## Development
 
 Pull-requests very welcome!
+
+<!-- TODO make an executable GUI: https://www.pyinstaller.org/ -->
