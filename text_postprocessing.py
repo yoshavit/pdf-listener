@@ -46,11 +46,20 @@ def postprocess_text(raw_text, filename, config):
 
 def postprocess_text_content(raw_text, config):
     pages = raw_text.split("\f")
+    # NOTE: the ordering here can be important!
     pages = remove_trailing_blank_pages(pages)
     pages = remove_sub_and_superscripts(pages)
-    pages = remove_page_numbers(pages)
     pages = remove_border_text(pages, top=True)
     pages = remove_border_text(pages, top=False)
+    pages = remove_page_numbers(pages)
+    # we remove the borders again after removing page numbers, which often mess up the border sequence
+    # why not simply remove page numbers first? well, it's hard to tell the difference between the first
+    # footnote and the first page number, so it's useful to cut all the text right up
+    # to the page number so that "proximity to page edge" can be used as a heuristic to
+    # distinguish between the two.
+    pages = remove_border_text(pages, top=True)
+    pages = remove_border_text(pages, top=False)
+    pages = remove_footnotes(pages, max_footnote_skip=1)
     text = "\f".join(pages)
     return text
 
@@ -88,7 +97,36 @@ def remove_page_numbers(pages):
     processed_pages = pages[:first_pn_page]
     for i, page in enumerate(pages[first_pn_page:]):
         # remove all occurrences of the page number
-        new_page = re.sub(r"(\s+)({})(\s+|$)".format(str(first_pn + i)), r"\1\3", page)
+        # To make sure we're indeed removing the page number and not e.g.
+        # a footnote, we'll find the first and last occurrence, and remove
+        # the longer one
+        matches = re.findall(r"(^|\s+)({})(\s+|$)".format(str(first_pn + i)), page)
+        if len(matches) == 0:
+            new_page = page
+        elif len(matches) == 1:
+            new_page = re.sub(
+                r"(^|\s+)({})(\s+|$)".format(str(first_pn + i)), r"\1\3", page
+            )
+        else:  # i.e. len(matches) > 1:
+            first_match = matches[0][1]
+            first_index = page.index(first_match)
+            last_match = matches[-1][1]
+            last_index = page.rindex(last_match) + len(last_match)
+            before_first_match_str = page[:first_index]
+            after_last_match_str = page[last_index:]
+            # We'll use the heuristic of which has more characters between it and the edge
+            # to decide whether it's a page number or a footnote
+            if len(before_first_match_str) < len(after_last_match_str):
+                # Remove only the first match
+                new_page = re.sub(
+                    r"(^|\s+)({})(\s+|$)".format(str(first_pn + i)),
+                    r"\1\3",
+                    page,
+                    count=1,
+                )
+            else:
+                # Remove only the last match
+                new_page = page[::-1].replace(str(first_pn + i)[::-1], "\n", 1)[::-1]
         processed_pages.append(new_page)
     return processed_pages
 
@@ -149,13 +187,50 @@ def remove_numeric_citations(pages):
     return new_pages
 
 
-def remove_footnotes(pages):
+def remove_footnotes(pages, max_footnote_skip=0):
+    # max_footnote_skip is the number of footnote numbers we're allowed to skip, if it seems like the pdf to text program missed one
     new_pages = []
     MAX_FOOTNOTES = 10000
-    footnote_iter = iter(range(MAX_FOOTNOTES))
+    footnote_iter = iter(range(1, MAX_FOOTNOTES))
+    fn_idx = next(footnote_iter)
+    pattern = re.compile(r"(\n[^a-zA-Z\d]*)(\d+)")
     for page in pages:
-        new_page = ""
-        # TODO do stuff
+        breakout = False
+        # find every int right after a newline
+        page_ints = [int(s[1]) for s in re.findall(pattern, page)]
+        # allow for up to max_footnote_skip skipped
+        # footnotes, due to possible transcription errors
+        # l is our "skipping" offset
+        for j in range(1 + max_footnote_skip):
+            for i, num in enumerate(reversed(page_ints)):
+                # Starting from the bottom of the page:
+                if fn_idx + j == num:
+                    # found a footnote!
+                    first_fn_idx = re.search(
+                        r"(\n[^a-zA-Z\d]*)" + str(num), page
+                    ).start()
+                    new_page = page[:first_fn_idx]
+                    for k in range(j + 1):
+                        # skip each absent footnote
+                        fn_idx = next(footnote_iter)
+                    breakout = True
+                    break
+            if breakout:
+                # Let's count out any additional footnote indices
+                for num in page_ints[-i:]:
+                    # Look for the next footnote
+                    for l in range(1 + max_footnote_skip):
+                        # allow for up to max_footnote_skip skipped
+                        # footnotes, due to possible transcription errors
+                        # j is our "skipping" offset
+                        if fn_idx + l == num:
+                            for k in range(l + 1):
+                                # skip each absent footnote
+                                fn_idx = next(footnote_iter)
+                            break
+                break
+        else:  # no footnotes found
+            new_page = page
         new_pages.append(new_page)
     return new_pages
 
@@ -175,6 +250,7 @@ def place_footnotes_inline(pages, prefix="Foonote: "):
 
 
 def extract_ints(s):
+    # s is a string or list of strings to find ints in
     if isinstance(s, str):
         return [int(c) for c in s.split() if c.isdigit()]
     else:
