@@ -88,7 +88,7 @@ Accept the terms of service, and then click "Create Application".
 You'll be navigated to the "My Applications" page, where, next to the application name you provided,
 you should see a consumer key (e.g. `12345-abcd67890beef1337`). Highlight and copy the text of the key.
 
-Now, open `./pocket_api_key.py` in this repo. Remove the value of `pocket_api_key`. Paste in your API key instead, in quotes.
+Now, create a file `./pocket_api_key.txt` in the base of this repo using your favorite text editor. Paste in your API key inside, and save the file.
 
 You should be ready!
 

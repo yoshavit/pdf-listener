@@ -116,6 +116,9 @@ parser.add_argument(
     action="store_true",
     help="Whether to show a diff of the text postprocessing result",
 )
+parser.add_argument(
+    "--pdf", action="store_true", help="Force the file to be read as a pdf",
+)
 os.makedirs("/tmp/pdf_to_pocket/", exist_ok=True)
 args = parser.parse_args()
 filename = args.filename
@@ -135,11 +138,14 @@ if not args.ignore_default_tag:
 words_per_file = args.words_per_file
 
 # Verify that you have Pocket and Google credentials
-from pocket_api_key import pocket_api_key
+assert os.path.exists(
+    "pocket_api_key.txt"
+), "You need to create and specify a Pocket API key!\nFor more info, go to ./SETUP.md ."
+with open("pocket_api_key.txt", "r") as f:
+    pocket_api_key_raw = f.read()
+    pocket_api_key = re.match(r"[a-f\d]+\-[a-f\d]+", pocket_api_key_raw).group()
 
-assert (
-    pocket_api_key != "put your API key here"
-), f"You need to create and specify a Pocket API key!\nFor more info, go to ./SETUP.md ."
+
 assert os.path.exists(
     "credentials.json"
 ), "Must get a gdrive credentials file!\nFor more info, go to ./SETUP.md ."
@@ -148,11 +154,17 @@ assert os.path.exists(
 # Extract the text ======================================
 extension = os.path.splitext(filename)[1][1:]
 print("Extracting text...")
-if extension == "pdf":
+if extension == "pdf" or args.pdf:
     raw_text = extract_text(filename)
 elif extension == "txt":
     with open(filename, "r") as f:
         raw_text = f.read()
+else:
+    raise ValueError(
+        "Could not parse filetype; extension was {}. Consider downloading and renaming the file, or pass --pdf to force the file to be read as a pdf.".format(
+            extension
+        )
+    )
 print("Text extracted!")
 
 
